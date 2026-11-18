@@ -65,7 +65,9 @@
   .page table.dt th{background:#d9d9d9;font-weight:bold}
   .page table.dt td.c{text-align:center}
   .page table.dt td.r{text-align:right}
-  .page table.dt td.tx{text-align:center;font-size:10.5px}
+  .page table.dt td.tx{text-align:left;font-size:10.5px;border:none!important;padding-left:6px;white-space:nowrap}
+  .page table.dt th.tx{border:none!important;background:none}
+  .page table.tot.wtx{margin-right:50px}
   .page table.tot{border-collapse:collapse;margin-left:auto;font-size:12px}
   .page table.tot td{border:1px solid #000;padding:3px 8px;height:23px}
   .page table.tot td.k{width:150px;text-align:center}
@@ -113,8 +115,9 @@
     </div>
 
     <div class="card">
-      <h3><span class="m-case">② 選択項目</span><span class="m-saiz">① 担当者</span></h3>
+      <h3><span class="m-case">② 選択項目</span><span class="m-saiz">① 担当者・荷主</span></h3>
       <div class="row"><label class="lb">担当者</label><input type="text" id="tanto" placeholder="例：稲葉　亜希子"></div>
+      <div class="row"><label class="lb">荷主名</label><input type="text" id="ninushi" value="株式会社アステップ"></div>
       <div class="m-case">
       <div class="row" style="align-items:flex-start"><label class="lb">件名<br><span class="hint">（複数可）</span></label>
         <div class="chk" id="kenmeiBox">
@@ -520,18 +523,19 @@ function setMode(m){
 
 /* ================= 発注書描画 ================= */
 function dateObj(){ const v=$('hatchuDate').value; if(!v) return new Date(); const [y,m,d]=v.split('-').map(Number); return new Date(y,m-1,d); }
-function fileName(){ if(mode==='saiz') return saizFileName(); const d=dateObj(); const p=n=>String(n).padStart(2,'0'); return `発注書（アステップ様）_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`; }
+function fileName(){ if(mode==='saiz') return saizFileName(); const d=dateObj(); const p=n=>String(n).padStart(2,'0'); return `発注書（後藤回漕店／アステップ）${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`; }
 function pageHTML(){
   if(mode==='saiz') return saizPageHTML();
   const d=dateObj(); const t=totals();
   const it4=items[3];
   const honsu = it4 && it4.name ? `${it4.qty||''}${it4.unit||''}` : '';
   const hd=[
-    ['輸出入区分',$('kubun').value],['作業内容',getSagyo()],['POL',$('pol').value],['POD',$('pod').value],
+    ['荷主名',$('ninushi').value],['輸出入区分',$('kubun').value],['作業内容',getSagyo()],['POL',$('pol').value],['POD',$('pod').value],
     ['配送先',$('haiso').value],['納品日/集荷日',$('nohin').value],['支払条件',$('shiharai').value],['検収条件',$('kenshu').value],
     ['案件No',cur.no||$('caseNo').value],['サイズ',getSize()],['本数/台数',honsu],['食品申請',getFood()]
   ];
-  const rows=items.map((it,i)=>`<tr><td class="c">${i+1}</td><td>${esc(it.name)}</td>
+  const list=items.slice(); while(list.length<9) list.push(blankItem('pad'));
+  const rows=list.map((it,i)=>`<tr><td class="c">${(i<7||it.name)?i+1:''}</td><td>${esc(it.name)}</td>
      <td class="r">${it.name&&it.price!==''?num(it.price):''}</td><td class="c">${it.name?esc(it.qty):''}</td>
      <td class="c">${it.name?esc(it.unit):''}</td><td class="r">${it.name?num(lineAmt(it)):''}</td>
      <td class="tx">${it.name?esc(it.tax):''}</td></tr>`).join('');
@@ -554,24 +558,23 @@ function pageHTML(){
     <table class="hd">${hd.map(([k,v])=>`<tr><td class="k">${k}：</td><td class="v">${esc(v)}</td></tr>`).join('')}</table>
     <div class="sum"><span class="k">合計金額</span><span class="v">${yen(t.total)}　（税込）</span></div>
     <table class="dt">
-      <tr><th style="width:36px">No</th><th>項目</th><th style="width:90px">単価</th><th style="width:44px">数量</th><th style="width:44px">単位</th><th style="width:100px">金額</th><th style="width:52px">税区分</th></tr>
+      <tr><th style="width:36px">No</th><th>項目</th><th style="width:90px">単価</th><th style="width:44px">数量</th><th style="width:44px">単位</th><th style="width:100px">金額</th><th class="tx" style="width:50px"></th></tr>
       ${rows}
     </table>
-    <table class="tot">
+    <table class="tot wtx">
       <tr><td class="k">小計</td><td class="v">${yen(t.sub)}</td></tr>
-      <tr><td class="k">消費税（10%）</td><td class="v">${yen(t.tax)}</td></tr>
-      <tr><td class="k">合計（税込）</td><td class="v">${yen(t.total)}</td></tr>
+      <tr><td class="k">税額</td><td class="v">${yen(t.tax)}</td></tr>
     </table>
     <div class="rmk"><span class="k">備考：</span>${esc($('biko').value)}</div>
   </div>`;
 }
 function ymd(v){ if(!v) return null; const [y,m,d]=v.split('-').map(Number); return new Date(y,m-1,d); }
-function saizFileName(){ const d=ymd($('sDate').value)||new Date(); const p=n=>String(n).padStart(2,'0'); return `発注書（サイゼリヤ）_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`; }
+function saizFileName(){ const d=ymd($('sDate').value)||new Date(); const p=n=>String(n).padStart(2,'0'); return `発注書（後藤回漕店／アステップ）${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`; }
 function jpDate(v){ const d=ymd(v); if(!d) return ''; return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${'日月火水木金土'[d.getDay()]}）`; }
 function saizPageHTML(){
   const d=ymd($('sDate').value)||new Date(); const t=totals();
   const dest=SAIZ_DEST[$('sDest').value];
-  const hd=[['引取先',$('sHikitori').value],['配送先名',dest?dest.name:''],['配送先住所',$('sAddr').value],['納品日',jpDate($('sNohin').value)],
+  const hd=[['荷主名',$('ninushi').value],['引取先',$('sHikitori').value],['配送先名',dest?dest.name:''],['配送先住所',$('sAddr').value],['納品日',jpDate($('sNohin').value)],
     ['支払条件',$('sShiharai').value],['検収条件',$('sKenshu').value],['サイズ',$('sSize').value],['台数',$('sDaisu').value?$('sDaisu').value+'台':'']];
   const rows=items.map((it,i)=>`<tr><td class="c">${i+1}</td><td>${esc(it.name)}</td>
      <td class="r">${it.name&&it.price!==''?num(it.price):''}</td><td class="c">${it.name?esc(it.qty):''}</td>
@@ -710,7 +713,7 @@ async function ensurePerm(h){
 }
 async function uniqueName(dir,base){
   for(let i=1;i<100;i++){
-    const n= i===1 ? `${base}.pdf` : `${base}(${i}).pdf`;
+    const n= i===1 ? `${base}.pdf` : `${base}_${i-1}.pdf`;
     try{ await dir.getFileHandle(n); }catch(e){ return n; }   // 無ければ使う
   }
   return `${base}_${Date.now()}.pdf`;
@@ -788,7 +791,7 @@ $('sheetSel').onchange=()=>{
   showPickMsg({s, how:'noplace'}); rebuildAuto();
 };
 document.querySelectorAll('input[name=food]').forEach(r=>r.onchange=rebuildAuto);
-['tanto','kubun','pol','sagyoOther','pod','haiso','nohin','shiharai','kenshu','biko','hatchuDate','toName','toZip','toAddr','toTel','toFax']
+['tanto','ninushi','kubun','pol','sagyoOther','pod','haiso','nohin','shiharai','kenshu','biko','hatchuDate','toName','toZip','toAddr','toTel','toFax']
   .forEach(id=>$(id).addEventListener('input',render));
 ['kubun','pol','hatchuDate'].forEach(id=>$(id).addEventListener('change',render));
 $('kenmeiBox').addEventListener('change',render);
@@ -799,6 +802,7 @@ $('goCase').onclick=()=>setMode('case');
 $('goSaiz').onclick=()=>setMode('saiz');
 $('btnMode').onclick=()=>{ $('startScreen').style.display='flex'; };
 $('tanto').addEventListener('change',()=>{ try{localStorage.setItem('astep_hatchu_tanto',$('tanto').value);}catch(e){} });
+$('ninushi').addEventListener('input',render);
 
 /* ================= 初期化 ================= */
 (function init(){
