@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>発注書作成ツール（アステップ版）</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Yu Gothic UI","Yu Gothic","Meiryo",sans-serif;background:#eef1f5;color:#222;font-size:13px}
+  header{background:#1f3b63;color:#fff;padding:10px 18px;font-size:17px;font-weight:bold}
+  header small{font-weight:normal;font-size:12px;opacity:.8;margin-left:10px}
+  .wrap{display:flex;gap:16px;padding:14px;align-items:flex-start}
+  .left{width:470px;flex:none;display:flex;flex-direction:column;gap:12px}
+  .card{background:#fff;border-radius:8px;padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .card h3{margin:0 0 8px;font-size:14px;color:#1f3b63;border-left:4px solid #1f3b63;padding-left:7px}
+  .drop{border:2px dashed #7a8fb0;border-radius:8px;padding:18px;text-align:center;color:#4a5d7d;cursor:pointer;background:#f7f9fc}
+  .drop.over{background:#dfe8f7;border-color:#1f3b63}
+  .status{margin-top:8px;font-size:12px;line-height:1.7}
+  .ok{color:#137333}.ng{color:#b3261e}.warn{color:#a15c00}
+  .row{display:flex;align-items:center;gap:8px;margin:5px 0}
+  .row>label.lb{width:92px;flex:none;font-weight:bold;font-size:12px;color:#444}
+  input[type=text],input[type=number],input[type=date],select,textarea{font:inherit;padding:4px 6px;border:1px solid #b9c2cf;border-radius:4px;background:#fff}
+  input[type=text],textarea{width:100%}
+  .chk{display:flex;flex-direction:column;gap:2px}
+  .chk label{white-space:nowrap}
+  .big{font-size:16px;padding:6px 8px;width:120px}
+  button{white-space:nowrap;font:inherit;cursor:pointer;border-radius:5px;border:1px solid #1f3b63;background:#fff;color:#1f3b63;padding:6px 12px}
+  button.primary{background:#1f3b63;color:#fff;font-weight:bold;padding:9px 16px;font-size:14px}
+  button:disabled{opacity:.45;cursor:default}
+  table.items{width:100%;border-collapse:collapse;font-size:12px}
+  table.items th{background:#e7ecf3;font-weight:normal;padding:3px}
+  table.items td{padding:2px}
+  table.items input,table.items select{width:100%;padding:3px 4px;font-size:12px}
+  table.items input.need{border:2px solid #b3261e;background:#fdecea}
+  .amt{text-align:right;white-space:nowrap}
+  .hint{font-size:11px;color:#666}
+  .right{flex:1;min-width:0;display:flex;justify-content:center}
+  .previewBox{background:#888;padding:14px;border-radius:8px;overflow:auto}
+  .scaler{transform-origin:top left}
+  /* ===== 発注書 本体（A4: 794 x 1123 px）===== */
+  .page{width:794px;height:1122px;background:#fff;padding:34px 56px;font-family:"Yu Gothic","Meiryo",sans-serif;color:#000;font-size:12px;position:relative;overflow:hidden}
+  .page .ttl{text-align:center;font-size:24px;font-weight:bold;letter-spacing:6px;margin:0 0 12px}
+  .page .top{display:flex;justify-content:space-between}
+  .page .to{width:58%}
+  .page .to .nm{font-size:17px;font-weight:bold;display:flex;gap:30px;align-items:baseline}
+  .page .to .nm span.o{font-size:15px;font-weight:normal}
+  .page .to .ad{font-size:11px;line-height:1.55;margin-top:6px}
+  .page .from{width:36%;font-size:11px;line-height:1.6}
+  .page .from .dt{margin-bottom:14px}
+  .page .from .co{font-size:14px;font-weight:bold;margin-bottom:2px}
+  .page .subj{display:flex;font-size:15px;font-weight:bold;border-bottom:2px solid #000;width:58%;margin-top:10px;padding-bottom:3px}
+  .page .subj .k{width:80px}
+  .page .lead{margin:10px 0 8px;font-size:11.5px}
+  .page table.hd{border-collapse:collapse;width:58%;font-size:11.5px}
+  .page table.hd td{padding:1.5px 4px}
+  .page table.hd td.k{width:105px;text-align:right;white-space:nowrap}
+  .page table.hd td.v{border-bottom:1px solid #000}
+  .page .sum{display:flex;align-items:baseline;gap:50px;margin:14px 0 8px}
+  .page .sum .k{font-size:16px;font-weight:bold;border-bottom:2px solid #000;padding-bottom:2px;width:130px}
+  .page .sum .v{font-size:16px}
+  .page table.dt{border-collapse:collapse;width:100%;font-size:12px}
+  .page table.dt th,.page table.dt td{border:1px solid #000;padding:2px 5px;height:22px}
+  .page table.dt th{background:#d9d9d9;font-weight:bold}
+  .page table.dt td.c{text-align:center}
+  .page table.dt td.r{text-align:right}
+  .page table.dt td.tx{text-align:center;font-size:10.5px}
+  .page table.tot{border-collapse:collapse;margin-left:auto;font-size:12px}
+  .page table.tot td{border:1px solid #000;padding:3px 8px;height:23px}
+  .page table.tot td.k{width:150px;text-align:center}
+  .page table.tot td.v{width:150px;text-align:right}
+  .page .rmk{border:1px solid #000;margin-top:12px;min-height:80px;padding:4px 6px;font-size:11.5px;white-space:pre-wrap}
+  .page .rmk .k{font-size:10.5px;display:block;border-bottom:1px solid #000;margin:-4px -6px 4px;padding:2px 6px}
+  .offscreen{position:fixed;left:-20000px;top:0}
+  body.mode-saiz .m-case{display:none!important}
+  body.mode-case .m-saiz{display:none!important}
+  #startScreen{position:fixed;inset:0;background:rgba(20,35,60,.88);display:flex;align-items:center;justify-content:center;z-index:50}
+  #startScreen .box{background:#fff;border-radius:12px;padding:28px 34px;text-align:center;min-width:520px}
+  #startScreen h2{margin:0 0 6px;color:#1f3b63}
+  #startScreen .btns{display:flex;gap:18px;margin-top:20px}
+  #startScreen button{flex:1;padding:22px 10px;font-size:17px;font-weight:bold;border-width:2px}
+  #startScreen button small{display:block;font-size:12px;font-weight:normal;margin-top:6px;color:#555}
+  #modeBadge{background:#fff;color:#1f3b63;border-radius:12px;padding:2px 10px;font-size:13px;margin-left:12px}
+  #modeBadge:empty{display:none}
+  #btnMode{float:right;background:transparent;color:#fff;border-color:#fff;padding:3px 10px;font-size:12px}
+  @media print{
+    @page{size:A4;margin:0}
+    body{background:#fff}
+    header,.left,.previewBox{display:none!important}
+    #printHost{position:static!important;left:0!important}
+  }
+</style>
+</head>
+<body>
+<header>発注書作成ツール（アステップ版）<span id="modeBadge"></span><button id="btnMode">← 作成パターンを選び直す</button></header>
+<div id="startScreen"><div class="box">
+  <h2>作成パターンを選んでください</h2>
+  <div class="hint">あとから画面右上のボタンで切り替えられます</div>
+  <div class="btns">
+    <button id="goCase">案件シートから作成<small>案件シートをドラッグ → 案件NOを入力</small></button>
+    <button id="goSaiz">サイゼリヤ案件<small>配送先・納品日を選んで作成</small></button>
+  </div>
+</div></div>
+<div class="wrap">
+  <div class="left">
+
+    <div class="card m-case">
+      <h3>① ファイルをドラッグ</h3>
+      <div class="drop" id="drop">ここに「案件シート」をドラッグ<br><span class="hint">（クリックしてファイル選択も可）<br>※指示書は内蔵済みのため不要。配送料が変わったときだけ新しい指示書をドラッグすると更新されます</span></div>
+      <input type="file" id="fileIn" multiple accept=".xls,.xlsx,.xlsm" style="display:none">
+      <div class="status" id="fileStatus"><span class="hint">未読込</span></div>
+    </div>
+
+    <div class="card">
+      <h3><span class="m-case">② 選択項目</span><span class="m-saiz">① 担当者</span></h3>
+      <div class="row"><label class="lb">担当者</label><input type="text" id="tanto" placeholder="例：稲葉　亜希子"></div>
+      <div class="m-case">
+      <div class="row" style="align-items:flex-start"><label class="lb">件名<br><span class="hint">（複数可）</span></label>
+        <div class="chk" id="kenmeiBox">
+          <label><input type="checkbox" value="通関手配依頼" checked> 通関手配依頼</label>
+          <label><input type="checkbox" value="ドレー・トラック輸送手配依頼"> ドレー・トラック輸送手配依頼</label>
+          <label><input type="checkbox" value="フォワーディング手配依頼"> フォワーディング手配依頼</label>
+        </div>
+      </div>
+      <div class="row"><label class="lb">輸出入区分</label>
+        <select id="kubun"><option>海上輸入</option><option>海上輸出</option><option>航空輸入</option><option>航空輸出</option><option>国内輸送</option></select></div>
+      <div class="row"><label class="lb">作業内容</label>
+        <select id="sagyo"><option>通関～ドレー手配</option><option>ドレー手配のみ</option><option>トラック手配</option><option value="__other">その他（入力）</option></select>
+        <input type="text" id="sagyoOther" placeholder="作業内容を入力" style="display:none"></div>
+      <div class="row"><label class="lb">POL</label>
+        <select id="pol"><option>SHEKOU</option><option>XIAMEN</option></select></div>
+      <div class="row"><label class="lb">サイズ</label>
+        <select id="size"><option>20F</option><option>40F</option><option>LCL</option><option>4T車</option><option>10T車</option><option value="__other">その他（入力）</option></select>
+        <input type="text" id="sizeOther" placeholder="サイズを入力" style="display:none"></div>
+      <div class="row"><label class="lb">食品申請</label>
+        <label><input type="radio" name="food" value="有"> 有</label>
+        <label><input type="radio" name="food" value="無" checked> 無</label></div>
+      </div>
+      <details style="margin-top:6px"><summary class="hint" style="cursor:pointer">宛先（発注先）を変更する</summary>
+        <div class="row"><label class="lb">会社名</label><input type="text" id="toName" value="株式会社後藤回漕店"></div>
+        <div class="row"><label class="lb">〒</label><input type="text" id="toZip" value="220-6014"></div>
+        <div class="row"><label class="lb">住所</label><input type="text" id="toAddr" value="横浜市西区みなとみらい2丁目3番1号"></div>
+        <div class="row"><label class="lb">TEL</label><input type="text" id="toTel" value="045-682-5452"></div>
+        <div class="row"><label class="lb">FAX</label><input type="text" id="toFax" value="045-682-5459"></div>
+      </details>
+    </div>
+
+    <div class="card m-case">
+      <h3>③ 案件NOを入力</h3>
+      <div class="row"><label class="lb">案件NO</label><input type="text" id="caseNo" class="big" placeholder="例：784"><button id="btnLoad">読込</button></div>
+      <div class="status" id="caseStatus"></div>
+    </div>
+
+    <div class="card m-saiz">
+      <h3>② 基本情報（サイゼリヤ）</h3>
+      <div class="row"><label class="lb">発注日</label><input type="date" id="sDate"></div>
+      <div class="row"><label class="lb">件名</label><input type="text" id="sKenmei" value="トラック輸送手配依頼"></div>
+      <div class="row"><label class="lb">引取先</label><input type="text" id="sHikitori" value="レールゲート（後藤回漕店様倉庫）"></div>
+      <div class="row"><label class="lb">配送先</label>
+        <select id="sDest" style="flex:1"><option value="">-- 選択してください --</option><option value="yoshikawa">株式会社サイゼリヤ　吉川物流</option><option value="chiba">株式会社サイゼリヤ　千葉物流</option></select></div>
+      <div class="row"><label class="lb">配送先住所</label><input type="text" id="sAddr" placeholder="配送先を選ぶと自動表示"></div>
+      <div class="row"><label class="lb">納品日</label><input type="date" id="sNohin"></div>
+      <div class="row"><label class="lb">支払条件</label><input type="text" id="sShiharai" value="月末締め翌月月末払い（銀行振込）"></div>
+      <div class="row"><label class="lb">検収条件</label><input type="text" id="sKenshu" value="配送完了をもって検収とする"></div>
+      <div class="row"><label class="lb">サイズ</label><input type="text" id="sSize" value="4T車" style="width:120px"></div>
+      <div class="row"><label class="lb">台数</label><input type="number" id="sDaisu" value="1" min="1" style="width:80px"> 台</div>
+    </div>
+
+    <div class="card" id="editCard">
+      <h3><span class="m-case">④ 内容の確認・修正</span><span class="m-saiz">③ 金額明細・備考</span></h3>
+      <div class="m-case">
+      <div class="row"><label class="lb">発注日</label><input type="date" id="hatchuDate"></div>
+      <div class="row"><label class="lb">POD</label><input type="text" id="pod"></div>
+      <div class="row"><label class="lb">配送先</label><input type="text" id="haiso"></div>
+      <div class="row"><label class="lb">納品日/集荷日</label><input type="text" id="nohin"></div>
+      <div class="row"><label class="lb">支払条件</label><input type="text" id="shiharai" value="月末締め翌月月末払い（銀行振込）"></div>
+      <div class="row"><label class="lb">検収条件</label><input type="text" id="kenshu" value="配送完了をもって検収とする"></div>
+      <div class="status" id="pickMsg" style="margin:6px 0 2px"></div>
+      <div class="row"><label class="lb">配送先(料金)</label><select id="sheetSel" style="flex:1;min-width:0"></select></div>
+      <div class="hint" style="margin:4px 0 6px">金額明細（No.4〜（輸送費・食品申請）は選択内容から自動作成。手で修正もできます）</div>
+      </div>
+      <div class="hint m-saiz" style="margin:0 0 6px">No.1・No.2は基本情報から自動作成。No.3は自由入力。手で修正もできます</div>
+      <div id="freightWarn" style="display:none;margin:0 0 6px;padding:6px 8px;border:1px solid #b3261e;background:#fdecea;color:#b3261e;font-weight:bold">⚠ 配送料が不明です。No.4の単価を入力してください（未入力のままではダウンロードできません）</div>
+      <table class="items" id="itemTbl">
+        <thead><tr><th style="width:24px">No</th><th>項目</th><th style="width:70px">単価</th><th style="width:40px">数量</th><th style="width:40px">単位</th><th style="width:62px">税区分</th><th style="width:70px">金額</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="row" style="align-items:flex-start;margin-top:8px"><label class="lb">備考</label><textarea id="biko" rows="3"></textarea></div>
+    </div>
+
+    <div class="card" style="text-align:center">
+      <div id="saveBox" style="text-align:left;border:1px solid #c9d3e2;border-radius:6px;padding:8px 10px;margin-bottom:10px;background:#f7f9fc">
+        <div style="font-weight:bold;color:#1f3b63;margin-bottom:4px">保存先（自動保存）</div>
+        <div id="saveDirLabel" style="font-size:12px"></div>
+        <div class="hint" style="margin:4px 0">発注日の月のフォルダー（例：2026年11月）に自動で保存します。<br>
+          <b>設定のしかた：</b>ボタンを押して開いた画面の<b>上のアドレス欄</b>に下の場所を貼り付けて Enter →「フォルダーの選択」</div>
+        <div style="display:flex;gap:4px;margin:4px 0"><input type="text" id="savePathTxt" readonly value="\\seino-ntsv01\営業開発部\(A)   稲葉チーム\★発注書" style="font-size:12px;flex:1"><button id="btnCopyPath" style="font-size:12px;padding:3px 8px">コピー</button></div>
+        <div id="saveDirErr" class="status" style="display:none;color:#b3261e;font-weight:bold"></div>
+        <button id="btnSetDir" style="font-size:12px;padding:4px 10px">保存先フォルダーを設定</button>
+        <button id="btnClearDir" style="font-size:12px;padding:4px 10px;margin-left:4px">設定を解除</button>
+      </div>
+      <button class="primary" id="btnPdf">PDFを作成・保存</button>
+      <button id="btnPrint" style="margin-left:6px">印刷画面から保存</button>
+      <div class="hint" id="pdfName" style="margin-top:6px"></div>
+      <div id="saveMsg" class="status" style="text-align:left"></div>
+      <div id="outErr" style="display:none;margin-top:8px;padding:8px;border:2px solid #b3261e;background:#fdecea;color:#b3261e;font-weight:bold;text-align:left"></div>
+    </div>
+  </div>
+
+  <div class="right"><div class="previewBox"><div class="scaler" id="scaler"><div id="preview"></div></div></div></div>
+</div>
+<div id="printHost" class="offscreen"></div>
+
+<script>
+/* ================= 基本データ ================= */
+const FIXED_ITEMS = [
+  {name:'納税扱い輸入申告料', price:7000, qty:1, unit:'件', tax:'免税'},
+  {name:'つづき申告料',       price:5000, qty:1, unit:'件', tax:'課税'},
+  {name:'取扱料',             price:5000, qty:1, unit:'件', tax:'課税'},
+];
+const FROM_BLOCK = ['国際部 国際課','〒103-0007','東京都中央区日本橋浜町1-12-9','日本橋浜町ビル5Ｆ'];
+const FROM_TEL='03-3851-2612', FROM_FAX='03-3851-2614';
+
+let caseBook=null, caseBookName='';     // {sheets:{name:rows2D}, names:[]}
+let shijiBook=null, shijiBookName='';
+let shijiSheets=[];                      // [{name, norm, no, place, size, cost, item, from}]
+let items=[];                            // 表示中の明細
+let caseItems=[], saizItems=[];
+let mode='';                             // 'case' | 'saiz'
+const SAIZ_DEST={
+  yoshikawa:{name:'株式会社サイゼリヤ　吉川物流',addr:'埼玉県吉川市旭2-5',price:30000},
+  chiba:    {name:'株式会社サイゼリヤ　千葉物流',addr:'千葉市稲毛区六方町133',price:32000},
+};
+let cur={};                              // 案件データ
+
+const $=id=>document.getElementById(id);
+const nk=s=>String(s??'').normalize('NFKC').replace(/\s+/g,'');
+const yen=n=>'¥'+Math.round(n||0).toLocaleString('ja-JP');
+const num=n=>Math.round(n||0).toLocaleString('ja-JP');
+function fmtDate(v){
+  if(v instanceof Date && !isNaN(v)) return `${v.getFullYear()}/${v.getMonth()+1}/${v.getDate()}`;
+  return String(v??'').replace(/\r?\n/g,' ').trim();
+}
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+/* ================= ファイル読込 ================= */
+function wbToBook(wb){
+  const book={names:wb.SheetNames.slice(),sheets:{}};
+  for(const n of wb.SheetNames){
+    const ws=wb.Sheets[n]; const rows=[];
+    if(ws && ws['!ref']){
+      const rg=XLSX.utils.decode_range(ws['!ref']);
+      for(let r=0;r<=rg.e.r;r++){
+        const row=[];
+        for(let c=0;c<=Math.min(rg.e.c,60);c++){
+          const cell=ws[XLSX.utils.encode_cell({r,c})];
+          row.push(cell? cell.v : '');
+        }
+        rows.push(row);
+      }
+    }
+    book.sheets[n]=rows;
+  }
+  return book;
+}
+const g=(rows,r,c)=> (rows[r] && rows[r][c]!==undefined) ? rows[r][c] : '';
+
+function isCaseBook(book){
+  return book.names.some(n=>{
+    const rows=book.sheets[n];
+    for(let r=0;r<Math.min(rows.length,15);r++){
+      if(nk(g(rows,r,7)).toUpperCase().startsWith('BLNO')|| nk(g(rows,r,17)).includes('ドレー先')) return true;
+    }
+    return false;
+  });
+}
+function isShijiBook(book){
+  return book.names.some(n=>book.sheets[n].some(row=>row.some(v=>String(v).includes('請求書作成指示書'))));
+}
+
+async function handleFiles(files){
+  for(const f of files){
+    try{
+      const buf=await f.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array',cellDates:true});
+      registerBook(wbToBook(wb), f.name);
+    }catch(e){ console.error(e); setFileStatus(`<span class="ng">✕ ${esc(f.name)} を読み込めませんでした</span>`, true);}
+  }
+}
+function registerBook(book,name){
+  if(isCaseBook(book)){ caseBook=book; caseBookName=name; }
+  else if(isShijiBook(book)){ shijiBook=book; shijiBookName=name; buildShijiIndex(); }
+  else { setFileStatus(`<span class="warn">？ ${esc(name)} は案件シート／指示書として判別できませんでした</span>`,true); return; }
+  refreshFileStatus();
+  if(cur.no) loadCase();
+}
+let extraMsg='';
+function setFileStatus(html,append){ extraMsg = append? html : ''; refreshFileStatus(); }
+function refreshFileStatus(){
+  let h='';
+  h+= caseBook ? `<div class="ok">✓ 案件シート：${esc(caseBookName)}（${countCases()}件）</div>` : `<div class="ng">✕ 案件シート：未読込</div>`;
+  h+= `<div class="ok">✓ 配送料表：${esc(masterInfo)}（${shijiSheets.length}行先）</div>`;
+  if(extraMsg) h+='<div>'+extraMsg+'</div>';
+  $('fileStatus').innerHTML=h;
+}
+
+/* ================= 案件シート ================= */
+function caseRowsAll(){
+  const out=[];
+  if(!caseBook) return out;
+  for(const n of caseBook.names){
+    const rows=caseBook.sheets[n];
+    let hdr=-1;
+    for(let r=0;r<Math.min(rows.length,15);r++){ if(nk(g(rows,r,7)).toUpperCase().startsWith('BLNO')|| nk(g(rows,r,17)).includes('ドレー先')){hdr=r;break;} }
+    if(hdr<0) continue;
+    for(let r=hdr+1;r<rows.length;r++){
+      const a=nk(g(rows,r,0));
+      if(a && /^\d+$/.test(a)) out.push({sheet:n,r,no:a,row:rows[r]});
+    }
+  }
+  return out;
+}
+function countCases(){ return caseRowsAll().length; }
+function findCase(no){
+  const key=nk(no).replace(/^NO\.?/i,'');
+  const all=caseRowsAll().filter(x=>x.no===key);
+  return all.length? all[all.length-1] : null;
+}
+
+/* ================= 指示書 ================= */
+function sizeFromName(norm){
+  const u=norm.toUpperCase();
+  if(/40F/.test(u)) return '40F';
+  if(/20F/.test(u)) return '20F';
+  if(/10T/.test(u)) return '10T車';
+  if(/4T/.test(u)) return '4T車';
+  if(/2T/.test(u)) return '2T車';
+  if(/LCL/.test(u)) return 'LCL';
+  return '';
+}
+/* 内蔵の配送料表（2026年10月 指示書の「NO.ｘｘｘ 行先 サイズ」シートの601原価） */
+const BUILTIN_MASTER = [{"name": "NO.ｘｘｘ 川口　20F", "cost": 35000, "item": "配送料 川口市 20F 9/13"}, {"name": "NO.ｘｘｘ　小牧 20F", "cost": 38000, "item": "コンテナ輸送料(20F)　11/6小牧市"}, {"name": "NO.ｘｘｘ　京都乙訓郡 20F", "cost": 41000, "item": "コンテナ輸送料　40F 乙訓郡　10/15"}, {"name": "NO.ｘｘｘ　一宮 20F", "cost": 41000, "item": "配送料　20FT　8/25　一宮市"}, {"name": "NO.ｘｘｘ　八千代 20F", "cost": 38000, "item": "配送料（八千代市）20F"}, {"name": "NO.ｘｘｘ　大井　20Ｆ", "cost": 25000, "item": "コンテナ輸送料（鴻池）20F"}, {"name": "NO.ｘｘｘ 大井　40F", "cost": 25000, "item": "コンテナ輸送料（鴻池）40F"}, {"name": "NO.ｘｘｘ　所沢 40F", "cost": 52000, "item": "配送料 所沢市 40F 2/4"}, {"name": "NO.ｘｘｘ　厚木 20F", "cost": 35000, "item": "コンテナ輸送料　20Ｆ"}, {"name": "NO.ｘｘｘ　大井(LCL) 2t", "cost": 23000, "item": "トラック輸送料　9/29（TRG）"}, {"name": "NO.ｘｘｘ　大井(LCL) 4t", "cost": 24000, "item": "トラック輸送料（TRG）"}, {"name": "NO.ｘｘｘ　大井(LCL)10t", "cost": 28000, "item": "トラック輸送料（TRG,ニッシン）"}];
+const MASTER_KEY='astep_hatchu_master';
+let masterInfo='内蔵（2026年10月 指示書）';
+function makeEntry(name,cost,item){
+  const norm=nk(name);
+  const place=norm.replace(/^NO\.?(ｘｘｘ|xxx|\d+)/i,'').replace(/\(\d+\)$/,'').replace(/\(LCL\)/i,'')
+                  .replace(/(20|40)F/ig,'').replace(/\d+t/ig,'').replace(/[()（）]/g,'');
+  return {name,norm,no:'',tpl:true,place,size:sizeFromName(norm),cost:Number(cost)||0,item:item||'',from:''};
+}
+function loadMaster(){
+  let list=BUILTIN_MASTER;
+  try{ const sv=JSON.parse(localStorage.getItem(MASTER_KEY)||'null'); if(sv && sv.list && sv.list.length){ list=sv.list; masterInfo=sv.info; } }catch(e){}
+  shijiSheets=list.map(x=>makeEntry(x.name,x.cost,x.item));
+  fillSheetSel();
+}
+// 新しい指示書をドラッグしたときだけ：配送先ごとのシートで配送料表を更新して保存
+function buildShijiIndex(){
+  const list=[];
+  for(const n of shijiBook.names){
+    const norm=nk(n);
+    if(!/^NO\.?(ｘｘｘ|xxx)/i.test(norm) || /\(\d+\)$/.test(norm)) continue;
+    const c601=[];
+    shijiBook.sheets[n].forEach(row=>{ if(nk(row[11])==='601'){ const cost=Number(row[24]); if(cost) c601.push({item:String(row[5]||'').trim(),cost}); } });
+    const pick=c601.find(x=>/輸送|配送|配達/.test(x.item))||c601[0];
+    if(pick) list.push({name:n.trim(),cost:pick.cost,item:pick.item});
+  }
+  if(!list.length){ setFileStatus('<span class="warn">この指示書に「NO.ｘｘｘ」の配送先シートが無いため、配送料表は更新しませんでした</span>',true); return; }
+  const d=new Date();
+  masterInfo=`${shijiBookName} で更新（${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}）`;
+  try{ localStorage.setItem(MASTER_KEY,JSON.stringify({info:masterInfo,list})); }catch(e){}
+  shijiSheets=list.map(x=>makeEntry(x.name,x.cost,x.item));
+  fillSheetSel();
+}
+function fillSheetSel(selName){
+  const sel=$('sheetSel');
+  const opt=s=>`<option value="${esc(s.name)}">${esc(s.name.replace(/^NO\.?\s*(ｘｘｘ|xxx)\s*/i,'').trim())}　→ ${num(s.cost)}円</option>`;
+  sel.innerHTML='<option value="">（使わない／手入力）</option>'+shijiSheets.map(opt).join('');
+  if(selName!==undefined) sel.value=selName;
+}
+// 配送先にシートの行先名（大井・所沢・八千代…）が含まれるか
+function placeHit(s,h){ return s.place && (h.includes(s.place) || (s.place.length>3 && h.includes(s.place.slice(-3)))); }
+// サイズ選択 → 指示書シートのサイズ
+function sheetSizeFor(size){ return size==='LCL' ? '4T車' : size; }
+// 配送先＋サイズから「配送先ごとのシート」を探す（無ければ案件NOのシート）
+function pickSheet(haiso,size,no){
+  if(!shijiSheets.length) return {s:null,how:'none'};
+  const h=nk(haiso), want=sheetSizeFor(size);
+  const byPlace=shijiSheets.filter(s=>placeHit(s,h));
+  const tpl=byPlace.filter(s=>s.tpl && s.size===want);
+  if(tpl.length) return {s: tpl.find(s=>!/\(\d+\)$/.test(s.norm)) || tpl[0], how:'place'};
+  const real=byPlace.filter(s=>!s.tpl && s.size===want);
+  if(real.length) return {s: real[real.length-1], how:'place'};
+  const exact=shijiSheets.find(s=>s.no && s.no===String(no) && s.size===want);
+  if(exact) return {s:exact, how:'no'};
+  return {s:null, how: byPlace.length?'nosize':'noplace'};
+}
+function autoPick(){
+  const r=pickSheet($('haiso').value,getSize(),cur.no);
+  fillSheetSel(r.s?r.s.name:'');
+  showPickMsg(r);
+  return r;
+}
+function showPickMsg(r){
+  const el=$('pickMsg'); if(!el) return;
+  if(r.s) el.innerHTML=`<span class="ok">✓ 「${esc(r.s.name.replace(/^NO\.?\s*(ｘｘｘ|xxx)\s*/i,'').trim())}」の601原価 <b>${num(r.s.cost)}円</b> を反映（${esc(r.s.item)}）</span>`;
+  else if(r.how==='nosize') el.innerHTML=`<span class="ng">✕ 配送先「${esc($('haiso').value)}」に サイズ「${esc(getSize())}」のシートがありません。下で選ぶか単価を手入力してください</span>`;
+  else el.innerHTML=`<span class="ng">✕ 配送先「${esc($('haiso').value)}」に合うシートがありません。下で選ぶか単価を手入力してください</span>`;
+}
+
+/* ================= 案件読込 ================= */
+function loadCase(){
+  const no=nk($('caseNo').value).replace(/^NO\.?/i,'');
+  const st=$('caseStatus');
+  if(!no){ st.innerHTML=''; return; }
+  if(!caseBook){ st.innerHTML='<span class="ng">先に案件シートをドラッグしてください</span>'; return; }
+  const hit=findCase(no);
+  if(!hit){ st.innerHTML=`<span class="ng">案件NO ${esc(no)} が案件シートに見つかりません</span>`; cur={}; render(); return; }
+  const row=hit.row;
+  cur={no, pod:fmtDate(row[6]), haiso:fmtDate(row[17]).replace(/\s+/g,' '), nohin:fmtDate(row[16]), mType:String(row[12]||''), cbm:row[11], bl:String(row[7]||'')};
+  $('pod').value=cur.pod; $('haiso').value=cur.haiso; $('nohin').value=cur.nohin;
+
+  // サイズの初期値：案件NOのシート名 → 無ければ案件シートのTYPE/CBM
+  const own=shijiSheets.find(s=>s.no===no);
+  setSize(own && own.size && own.size!=='2T車' ? own.size : (/LCL/i.test(cur.mType)?'LCL':(Number(cur.cbm)>=40?'40F':'20F')));
+  // POLの初期値：案件NOのシートのFROM
+  if(own && own.from){ if(own.from.includes('SHEKOU')) $('pol').value='SHEKOU'; else if(own.from.includes('XIAMEN')) $('pol').value='XIAMEN'; }
+
+  const r=autoPick();
+  let msg=`<div class="ok">✓ 案件NO ${esc(no)}：BL ${esc(cur.bl)} ／ ${esc(cur.pod)} ／ ${esc(cur.haiso)}</div>`;
+  msg+=`<div>${$('pickMsg').innerHTML}</div>`;
+  st.innerHTML=msg;
+  rebuildAuto();
+}
+function setSize(v){
+  const opts=[...$('size').options].map(o=>o.value);
+  if(opts.includes(v)){ $('size').value=v; $('sizeOther').style.display='none'; }
+  else { $('size').value='__other'; $('sizeOther').value=v; $('sizeOther').style.display=''; }
+}
+function getSize(){ return $('size').value==='__other' ? $('sizeOther').value.trim() : $('size').value; }
+function getSagyo(){ return $('sagyo').value==='__other' ? $('sagyoOther').value.trim() : $('sagyo').value; }
+function getFood(){ return document.querySelector('input[name=food]:checked').value; }
+function getKenmei(){ return [...document.querySelectorAll('#kenmeiBox input:checked')].map(x=>x.value).join('・'); }
+
+/* ================= 明細 ================= */
+function blankItem(kind){ return {name:'',price:'',qty:'',unit:'',tax:'課税',kind}; }
+function initItems(){
+  items=FIXED_ITEMS.map(f=>({...f,kind:'fixed'}));
+  items.push(blankItem('auto'));            // No.4
+  items.push(blankItem('free'),blankItem('free'));
+}
+function rebuildAuto(){
+  if(mode==='saiz'){ rebuildSaiz(); return; }
+  const size=getSize();
+  const sel=shijiSheets.find(s=>s.name===$('sheetSel').value);
+  const cost=sel?sel.cost:'';
+  const cont=/^(20F|40F)$/i.test(size);
+  const fixed=items.filter(x=>x.kind==='fixed');
+  let free=items.filter(x=>x.kind==='free');
+  const autos=[{name: cont?'コンテナ輸送料':'国内配送料', price:cost, qty:1, unit: cont?'本':'台', tax:'課税', kind:'auto'}];
+  if(getFood()==='有') autos.push({name:'食品申請手続料',price:3000,qty:1,unit:'件',tax:'非課税',kind:'auto'});
+  // 任意入力行：入力済みは残し、合計7行以上になるよう空行を補う
+  const filled=free.filter(x=>x.name||x.price);
+  const need=Math.max(2, 7-fixed.length-autos.length, filled.length);
+  free=filled.slice(); while(free.length<need) free.push(blankItem('free'));
+  items=[...fixed,...autos,...free]; caseItems=items;
+  drawItemTable(); markFreight(); render();
+}
+function drawItemTable(){
+  const tb=$('itemTbl').tBodies[0];
+  tb.innerHTML=items.map((it,i)=>`<tr data-i="${i}">
+    <td class="c" style="text-align:center">${i+1}</td>
+    <td><input data-k="name" value="${esc(it.name)}"></td>
+    <td><input data-k="price" type="number" value="${esc(it.price)}" style="text-align:right"></td>
+    <td><input data-k="qty" type="number" value="${esc(it.qty)}" style="text-align:right"></td>
+    <td><input data-k="unit" value="${esc(it.unit)}"></td>
+    <td><select data-k="tax">${['課税','非課税','免税'].map(t=>`<option ${t===it.tax?'selected':''}>${t}</option>`).join('')}</select></td>
+    <td class="amt" data-amt>${amtStr(it)}</td></tr>`).join('');
+}
+$('itemTbl').addEventListener('input',e=>{
+  const tr=e.target.closest('tr'); if(!tr) return;
+  const i=+tr.dataset.i, k=e.target.dataset.k;
+  items[i][k]=e.target.value;
+  tr.querySelector('[data-amt]').textContent= amtStr(items[i]);
+  markFreight(); if(freightMissing()<0 && $('outErr').innerHTML.includes('配送料')) outError('');
+  render();
+});
+function lineAmt(it){ if(it.amtText) return 0; return (Number(it.price)||0)*(Number(it.qty)||0); }
+function amtStr(it){ return it.name ? (it.amtText || num(lineAmt(it))) : ''; }
+function totals(){
+  let sub=0,taxable=0;
+  items.forEach(it=>{ if(!it.name) return; const a=lineAmt(it); sub+=a; if(it.tax==='課税') taxable+=a; });
+  const tax=Math.floor(taxable*0.1);
+  return {sub,tax,total:sub+tax};
+}
+
+function rebuildSaiz(){
+  const d=SAIZ_DEST[$('sDest').value];
+  const daisu=$('sDaisu').value;
+  const old3=saizItems.slice(2);
+  saizItems=[
+    {name:'国内配送料',price:d?d.price:'',qty:daisu,unit:'台',tax:'課税',kind:'auto'},
+    {name:'高速料金',price:'',qty:'',unit:'',tax:'課税',kind:'fixed',amtText:'実費'},
+    ...(old3.length?old3:[blankItem('free')])
+  ];
+  items=saizItems;
+  drawItemTable(); render();
+}
+function setMode(m){
+  mode=m;
+  document.body.classList.toggle('mode-case',m==='case');
+  document.body.classList.toggle('mode-saiz',m==='saiz');
+  $('startScreen').style.display='none';
+  $('modeBadge').textContent= m==='case'?'案件シートから作成':'サイゼリヤ案件';
+  outError('');
+  if(m==='case'){ items=caseItems.length?caseItems:items; rebuildAuto(); }
+  else rebuildSaiz();
+}
+
+/* ================= 発注書描画 ================= */
+function dateObj(){ const v=$('hatchuDate').value; if(!v) return new Date(); const [y,m,d]=v.split('-').map(Number); return new Date(y,m-1,d); }
+function fileName(){ if(mode==='saiz') return saizFileName(); const d=dateObj(); const p=n=>String(n).padStart(2,'0'); return `発注書（アステップ様）_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`; }
+function pageHTML(){
+  if(mode==='saiz') return saizPageHTML();
+  const d=dateObj(); const t=totals();
+  const it4=items[3];
+  const honsu = it4 && it4.name ? `${it4.qty||''}${it4.unit||''}` : '';
+  const hd=[
+    ['輸出入区分',$('kubun').value],['作業内容',getSagyo()],['POL',$('pol').value],['POD',$('pod').value],
+    ['配送先',$('haiso').value],['納品日/集荷日',$('nohin').value],['支払条件',$('shiharai').value],['検収条件',$('kenshu').value],
+    ['案件No',cur.no||$('caseNo').value],['サイズ',getSize()],['本数/台数',honsu],['食品申請',getFood()]
+  ];
+  const rows=items.map((it,i)=>`<tr><td class="c">${i+1}</td><td>${esc(it.name)}</td>
+     <td class="r">${it.name&&it.price!==''?num(it.price):''}</td><td class="c">${it.name?esc(it.qty):''}</td>
+     <td class="c">${it.name?esc(it.unit):''}</td><td class="r">${it.name?num(lineAmt(it)):''}</td>
+     <td class="tx">${it.name?esc(it.tax):''}</td></tr>`).join('');
+  return `<div class="page">
+    <div class="ttl">発注書</div>
+    <div class="top">
+      <div class="to">
+        <div class="nm"><span>${esc($('toName').value)}</span><span class="o">御中</span></div>
+        <div class="ad">〒 ${esc($('toZip').value)}<br>${esc($('toAddr').value)}<br>TEL　：　${esc($('toTel').value)}<br>FAX　：　${esc($('toFax').value)}</div>
+      </div>
+      <div class="from">
+        <div class="dt">発注日　　${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}</div>
+        <div class="co">西濃運輸株式会社</div>
+        ${FROM_BLOCK.map(esc).join('<br>')}<br>
+        TEL　 ：　${FROM_TEL}<br>FAX　 ：　${FROM_FAX}<br>担当者 ：　${esc($('tanto').value)}
+      </div>
+    </div>
+    <div class="subj"><span class="k">件名：</span><span>${esc(getKenmei())}</span></div>
+    <div class="lead">下記のとおり、発注いたします。</div>
+    <table class="hd">${hd.map(([k,v])=>`<tr><td class="k">${k}：</td><td class="v">${esc(v)}</td></tr>`).join('')}</table>
+    <div class="sum"><span class="k">合計金額</span><span class="v">${yen(t.total)}　（税込）</span></div>
+    <table class="dt">
+      <tr><th style="width:36px">No</th><th>項目</th><th style="width:90px">単価</th><th style="width:44px">数量</th><th style="width:44px">単位</th><th style="width:100px">金額</th><th style="width:52px">税区分</th></tr>
+      ${rows}
+    </table>
+    <table class="tot">
+      <tr><td class="k">小計</td><td class="v">${yen(t.sub)}</td></tr>
+      <tr><td class="k">消費税（10%）</td><td class="v">${yen(t.tax)}</td></tr>
+      <tr><td class="k">合計（税込）</td><td class="v">${yen(t.total)}</td></tr>
+    </table>
+    <div class="rmk"><span class="k">備考：</span>${esc($('biko').value)}</div>
+  </div>`;
+}
+function ymd(v){ if(!v) return null; const [y,m,d]=v.split('-').map(Number); return new Date(y,m-1,d); }
+function saizFileName(){ const d=ymd($('sDate').value)||new Date(); const p=n=>String(n).padStart(2,'0'); return `発注書（サイゼリヤ）_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`; }
+function jpDate(v){ const d=ymd(v); if(!d) return ''; return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${'日月火水木金土'[d.getDay()]}）`; }
+function saizPageHTML(){
+  const d=ymd($('sDate').value)||new Date(); const t=totals();
+  const dest=SAIZ_DEST[$('sDest').value];
+  const hd=[['引取先',$('sHikitori').value],['配送先名',dest?dest.name:''],['配送先住所',$('sAddr').value],['納品日',jpDate($('sNohin').value)],
+    ['支払条件',$('sShiharai').value],['検収条件',$('sKenshu').value],['サイズ',$('sSize').value],['台数',$('sDaisu').value?$('sDaisu').value+'台':'']];
+  const rows=items.map((it,i)=>`<tr><td class="c">${i+1}</td><td>${esc(it.name)}</td>
+     <td class="r">${it.name&&it.price!==''?num(it.price):''}</td><td class="c">${it.name?esc(it.qty):''}</td>
+     <td class="c">${it.name?esc(it.unit):''}</td><td class="r">${esc(amtStr(it))}</td></tr>`).join('');
+  return `<div class="page">
+    <div class="ttl">発注書</div>
+    <div class="top">
+      <div class="to">
+        <div class="nm"><span>${esc($('toName').value)}</span><span class="o">御中</span></div>
+        <div class="ad">〒 ${esc($('toZip').value)}<br>${esc($('toAddr').value)}<br>TEL　：　${esc($('toTel').value)}<br>FAX　：　${esc($('toFax').value)}</div>
+      </div>
+      <div class="from">
+        <div class="dt">発注日　　${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}</div>
+        <div class="co">西濃運輸株式会社</div>
+        ${FROM_BLOCK.map(esc).join('<br>')}<br>
+        TEL　 ：　${FROM_TEL}<br>FAX　 ：　${FROM_FAX}<br>担当者 ：　${esc($('tanto').value)}
+      </div>
+    </div>
+    <div class="subj"><span class="k">件名：</span><span>${esc($('sKenmei').value)}</span></div>
+    <div class="lead">下記のとおり、発注いたします。</div>
+    <table class="hd">${hd.map(([k,v])=>`<tr><td class="k">${k}：</td><td class="v">${esc(v)}</td></tr>`).join('')}</table>
+    <div class="sum"><span class="k">合計金額</span><span class="v">${yen(t.total)}　（税込）</span></div>
+    <table class="dt">
+      <tr><th style="width:36px">No</th><th>項目</th><th style="width:90px">単価</th><th style="width:44px">数量</th><th style="width:44px">単位</th><th style="width:110px">金額</th></tr>
+      ${rows}
+    </table>
+    <table class="tot">
+      <tr><td class="k">小計</td><td class="v">${yen(t.sub)}</td></tr>
+      <tr><td class="k">税額</td><td class="v">${yen(t.tax)}</td></tr>
+    </table>
+    <div class="rmk"><span class="k">備考：</span>${esc($('biko').value)}</div>
+  </div>`;
+}
+function render(){
+  if(typeof showSaveDir==='function' && document.getElementById('saveDirLabel')) try{ showSaveDir(); }catch(e){}
+  $('preview').innerHTML=pageHTML();
+  $('pdfName').textContent='ファイル名：'+fileName()+'.pdf';
+  fitPreview();
+}
+function fitPreview(){
+  const box=document.querySelector('.right'); const w=Math.min(box.clientWidth-30,794);
+  const s=Math.max(.4,w/794);
+  $('scaler').style.transform=`scale(${s})`;
+  $('scaler').style.width='794px';
+  $('scaler').parentElement.style.width=(794*s+28)+'px';
+  $('scaler').parentElement.style.height=(1122*s+28)+'px';
+}
+window.addEventListener('resize',fitPreview);
+
+/* ================= 出力 ================= */
+function outError(msg){
+  $('outErr').innerHTML=msg? '⚠ '+msg : '';
+  $('outErr').style.display=msg?'':'none';
+  if(msg) alert(msg.replace(/<[^>]+>/g,''));
+}
+// 配送料（輸送費）が未入力・0円か
+function freightMissing(){
+  const i=items.findIndex(x=>x.kind==='auto');
+  if(i<0) return -1;
+  return (Number(items[i].price)>0) ? -1 : i;
+}
+function markFreight(){
+  const i=items.findIndex(x=>x.kind==='auto'); if(i<0) return;
+  const inp=$('itemTbl').tBodies[0].rows[i]?.querySelector('input[data-k=price]');
+  const miss=mode==='case' && !!cur.no && !(Number(items[i].price)>0);
+  if(inp) inp.classList.toggle('need', miss);
+  const w=$('freightWarn');
+  if(w) w.style.display = miss ? '' : 'none';
+}
+function checkBeforeOut(){
+  if(mode==='saiz'){
+    if(!$('sDest').value){ outError('配送先を選択してください'); $('sDest').focus(); return false; }
+    if(!$('sNohin').value){ outError('納品日をカレンダーから選択してください'); $('sNohin').focus(); return false; }
+    if(!(Number($('sDaisu').value)>0)){ outError('台数を入力してください'); $('sDaisu').focus(); return false; }
+    if(!(Number(items[0].price)>0)){ outError('国内配送料の単価を入力してください'); return false; }
+    outError(''); return true;
+  }
+  if(!(cur.no)){ outError('案件NOを読み込んでください'); return false; }
+  if(!getKenmei()){ outError('件名を1つ以上選んでください'); return false; }
+  const fi=freightMissing();
+  if(fi>=0){
+    outError(`配送料（No.${fi+1} ${items[fi].name}）の金額が不明です。ダウンロード前に単価を入力してください。`);
+    const inp=$('itemTbl').tBodies[0].rows[fi]?.querySelector('input[data-k=price]');
+    if(inp){ inp.scrollIntoView({block:'center'}); inp.focus(); }
+    return false;
+  }
+  outError('');
+  return true;
+}
+/* ================= 自動保存（フォルダーへ） ================= */
+const FS_OK = typeof window.showDirectoryPicker==='function';
+let baseDir=null;
+function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open('astep_hatchu',1); r.onupgradeneeded=()=>r.result.createObjectStore('kv'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function idbSet(k,v){ const db=await idb(); return new Promise((res,rej)=>{ const t=db.transaction('kv','readwrite'); t.objectStore('kv').put(v,k); t.oncomplete=res; t.onerror=()=>rej(t.error); }); }
+async function idbGet(k){ const db=await idb(); return new Promise((res,rej)=>{ const q=db.transaction('kv').objectStore('kv').get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }
+function outDate(){ return mode==='saiz' ? (ymd($('sDate').value)||new Date()) : dateObj(); }
+function monthFolder(){ const d=outDate(); return `${d.getFullYear()}年${d.getMonth()+1}月`; }
+function showSaveDir(){
+  const el=$('saveDirLabel');
+  if(!FS_OK){ el.innerHTML='<span class="warn">このブラウザは自動保存に対応していません（Edge か Chrome で開いてください）。PDFは「ダウンロード」フォルダーに保存されます。</span>'; $('btnSetDir').style.display=$('btnClearDir').style.display='none'; return; }
+  el.innerHTML= baseDir
+    ? `<span class="ok">✓ ${esc(baseDir.name)} ＞ <b>${esc(monthFolder())}</b> に保存</span>`
+    : '<span class="warn">未設定（設定するまではダウンロードフォルダーに保存）</span>';
+  $('btnClearDir').style.display= baseDir?'':'none';
+}
+async function loadSaveDir(){ if(!FS_OK) return showSaveDir(); try{ baseDir=await idbGet('baseDir')||null; }catch(e){ baseDir=null; } showSaveDir(); }
+function dirErr(msg){ const el=$('saveDirErr'); el.innerHTML=msg?'⚠ '+msg:''; el.style.display=msg?'':'none'; }
+let inFrame=false; try{ inFrame = window.self!==window.top; }catch(e){ inFrame=true; }
+$('btnCopyPath').onclick=async()=>{
+  const t=$('savePathTxt'); t.select();
+  try{ await navigator.clipboard.writeText(t.value); }catch(e){ try{ document.execCommand('copy'); }catch(_){} }
+  $('btnCopyPath').textContent='コピー済'; setTimeout(()=>$('btnCopyPath').textContent='コピー',1500);
+};
+$('btnSetDir').onclick=async()=>{
+  dirErr('');
+  if(!FS_OK){ dirErr('このブラウザではフォルダーを設定できません。HTMLファイルを右クリック →「プログラムから開く」→ Microsoft Edge（または Chrome）で開いてください。'); return; }
+  if(inFrame){ dirErr('プレビュー画面の中では設定できません。HTMLファイルをパソコンに保存し、ダブルクリックして Edge／Chrome で直接開いてください。'); return; }
+  try{
+    const h=await window.showDirectoryPicker({id:'astep_hatchu',mode:'readwrite'});
+    baseDir=h; try{ await idbSet('baseDir',h); }catch(e){}
+    showSaveDir();
+  }catch(e){
+    if(e.name==='AbortError') return;
+    if(e.name==='SecurityError' && /sub.?frame|cross.?origin/i.test(e.message))
+      dirErr('プレビュー画面の中では設定できません。HTMLファイルをパソコンに保存し、ダブルクリックして Edge／Chrome で直接開いてください。');
+    else if(e.name==='NotAllowedError' || e.name==='SecurityError')
+      dirErr('ブラウザ（会社の設定）でフォルダーへの保存が禁止されているため設定できませんでした。（'+esc(e.name)+'）');
+    else dirErr('保存先を設定できませんでした：'+esc(e.name+' '+e.message));
+  }
+};
+$('btnClearDir').onclick=async()=>{ baseDir=null; try{ await idbSet('baseDir',null); }catch(e){} showSaveDir(); };
+async function ensurePerm(h){
+  const o={mode:'readwrite'};
+  if((await h.queryPermission(o))==='granted') return true;
+  return (await h.requestPermission(o))==='granted';
+}
+async function uniqueName(dir,base){
+  for(let i=1;i<100;i++){
+    const n= i===1 ? `${base}.pdf` : `${base}(${i}).pdf`;
+    try{ await dir.getFileHandle(n); }catch(e){ return n; }   // 無ければ使う
+  }
+  return `${base}_${Date.now()}.pdf`;
+}
+async function saveToFolder(blob){
+  const sub=await baseDir.getDirectoryHandle(monthFolder(),{create:true});
+  const name=await uniqueName(sub,fileName());
+  const fh=await sub.getFileHandle(name,{create:true});
+  const w=await fh.createWritable(); await w.write(blob); await w.close();
+  return `${baseDir.name}\\${monthFolder()}\\${name}`;
+}
+function downloadBlob(blob,name){
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+}
+function makePdfBlob(){
+  const host=$('printHost'); host.innerHTML=pageHTML();
+  return html2pdf().set({margin:0,image:{type:'jpeg',quality:0.98},
+      html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},jsPDF:{unit:'px',format:[794,1122],orientation:'portrait',hotfixes:['px_scaling']}})
+    .from(host.firstElementChild).outputPdf('blob').finally(()=>{ host.innerHTML=''; });
+}
+$('btnPdf').onclick=async()=>{
+  if(!checkBeforeOut()) return;
+  if(typeof html2pdf==='undefined'){ alert('PDF作成部品を読み込めませんでした（ネット接続を確認）。「印刷画面から保存」をお使いください。'); return; }
+  $('saveMsg').innerHTML='';
+  // 先に保存先の許可を確認（クリック直後でないと許可画面が出せないため）
+  let useDir=false;
+  if(FS_OK && baseDir){
+    try{ useDir=await ensurePerm(baseDir); }catch(e){ useDir=false; }
+    if(!useDir) $('saveMsg').innerHTML='<span class="warn">保存先フォルダーへのアクセスが許可されなかったため、ダウンロードフォルダーに保存します</span>';
+  }
+  $('btnPdf').disabled=true;
+  try{
+    const blob=await makePdfBlob();
+    if(useDir){
+      try{
+        const path=await saveToFolder(blob);
+        $('saveMsg').innerHTML=`<span class="ok">✓ 保存しました：${esc(path)}</span>`;
+      }catch(e){
+        console.error(e);
+        downloadBlob(blob,fileName()+'.pdf');
+        $('saveMsg').innerHTML=`<span class="ng">✕ 保存先に書き込めませんでした（${esc(e.message)}）。ダウンロードフォルダーに保存しました</span>`;
+      }
+    }else{
+      downloadBlob(blob,fileName()+'.pdf');
+      if(!$('saveMsg').innerHTML) $('saveMsg').innerHTML='<span class="ok">✓ ダウンロードフォルダーに保存しました</span>';
+    }
+  }finally{ $('btnPdf').disabled=false; }
+};
+$('btnPrint').onclick=()=>{
+  if(!checkBeforeOut()) return;
+  $('printHost').innerHTML=pageHTML();
+  const old=document.title; document.title=fileName();
+  setTimeout(()=>{ window.print(); document.title=old; $('printHost').innerHTML=''; },50);
+};
+
+/* ================= イベント ================= */
+const drop=$('drop');
+drop.onclick=()=>$('fileIn').click();
+$('fileIn').onchange=e=>{ handleFiles([...e.target.files]); e.target.value=''; };
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>handleFiles([...e.dataTransfer.files]));
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>{ if(!drop.contains(e.target)){ e.preventDefault(); handleFiles([...e.dataTransfer.files]); }});
+
+$('btnLoad').onclick=loadCase;
+$('caseNo').addEventListener('keydown',e=>{ if(e.key==='Enter') loadCase(); });
+$('sagyo').onchange=()=>{ $('sagyoOther').style.display=$('sagyo').value==='__other'?'':'none'; render(); };
+$('size').onchange=()=>{ $('sizeOther').style.display=$('size').value==='__other'?'':'none'; autoPick(); rebuildAuto(); };
+$('sizeOther').oninput=rebuildAuto;
+$('haiso').addEventListener('change',()=>{ autoPick(); rebuildAuto(); });
+$('sheetSel').onchange=()=>{
+  const s=shijiSheets.find(x=>x.name===$('sheetSel').value);
+  showPickMsg({s, how:'noplace'}); rebuildAuto();
+};
+document.querySelectorAll('input[name=food]').forEach(r=>r.onchange=rebuildAuto);
+['tanto','kubun','pol','sagyoOther','pod','haiso','nohin','shiharai','kenshu','biko','hatchuDate','toName','toZip','toAddr','toTel','toFax']
+  .forEach(id=>$(id).addEventListener('input',render));
+['kubun','pol','hatchuDate'].forEach(id=>$(id).addEventListener('change',render));
+$('kenmeiBox').addEventListener('change',render);
+$('sDest').onchange=()=>{ const d=SAIZ_DEST[$('sDest').value]; $('sAddr').value=d?d.addr:''; rebuildSaiz(); };
+$('sDaisu').addEventListener('input',()=>{ if(saizItems[0]) saizItems[0].qty=$('sDaisu').value; drawItemTable(); render(); });
+['sDate','sKenmei','sHikitori','sAddr','sNohin','sShiharai','sKenshu','sSize'].forEach(id=>{ $(id).addEventListener('input',render); $(id).addEventListener('change',render); });
+$('goCase').onclick=()=>setMode('case');
+$('goSaiz').onclick=()=>setMode('saiz');
+$('btnMode').onclick=()=>{ $('startScreen').style.display='flex'; };
+$('tanto').addEventListener('change',()=>{ try{localStorage.setItem('astep_hatchu_tanto',$('tanto').value);}catch(e){} });
+
+/* ================= 初期化 ================= */
+(function init(){
+  const d=new Date(), p=n=>String(n).padStart(2,'0');
+  $('hatchuDate').value=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+  $('sDate').value=$('hatchuDate').value;
+  try{ const t=localStorage.getItem('astep_hatchu_tanto'); if(t) $('tanto').value=t; }catch(e){}
+  loadSaveDir(); loadMaster(); initItems(); mode='case'; rebuildAuto(); mode=''; document.body.classList.add('mode-case'); refreshFileStatus();
+  if(typeof XLSX==='undefined') setFileStatus('<span class="ng">Excel読込部品を読み込めませんでした。ネット接続を確認して再読み込みしてください。</span>');
+})();
+</script>
+</body>
+</html>
